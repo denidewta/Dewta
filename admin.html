@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel Administrativo</title>
+  <link rel="stylesheet" href="admin.css" />
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <style>
+    /* ... (mesmos estilos que você forneceu) ... */
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <h1 class="app-title">Painel Administrativo</h1>
+    <div id="diasLegenda" class="dias-legenda"></div>
+    <div id="carousel" class="carousel-container"></div>
+
+    <h2>Resumo de Pagamentos</h2>
+    <div class="tabela-container">
+      <table id="tabelaResumo">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Valor Total</th>
+            <th>Data de Registro</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr>
+            <th colspan="2">Total Geral</th>
+            <th id="totalGeral">R$ 0,00</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <h2>Resumo Mensal</h2>
+    <div class="tabela-container">
+      <table id="tabelaMensal">
+        <thead>
+          <tr>
+            <th>Mês</th>
+            <th>Total Recebido</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalPagamento" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h3>Valor Recebido</h3>
+      <input type="number" id="valorPago" placeholder="Digite o valor em R$" />
+      <button id="confirmarPagamento">Confirmar</button>
+      <button onclick="fecharModal()">Cancelar</button>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+    apiKey: "AIzaSyCqImvbXx1nt0kpO9qP1OlvzYrOi02oh6U",
+    authDomain: "dewta-df829.firebaseapp.com",
+    projectId: "dewta-df829",
+    storageBucket: "dewta-df829.firebasestorage.app",
+    messagingSenderId: "482045122323",
+    appId: "1:482045122323:web:6e30a2f421a902d33b6ce6"
+  };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let agendamentoAtual = null;
+    let diaResumoAtual = null;
+
+    async function carregarAgendamentos() {
+      const carousel = document.getElementById("carousel");
+      const legenda = document.getElementById("diasLegenda");
+      carousel.innerHTML = "";
+      legenda.innerHTML = "";
+
+      const diasSnapshot = await db.collection("agendamentos").get();
+      const agendamentos = [];
+
+      diasSnapshot.forEach(diaDoc => {
+        agendamentos.push({ dataStr: diaDoc.id, diaDoc });
+      });
+
+      agendamentos.sort((a, b) => new Date(a.dataStr) - new Date(b.dataStr));
+      const hojeStr = new Date().toISOString().split("T")[0];
+      let primeiroDiaVisivel = null;
+
+      for (const { dataStr, diaDoc } of agendamentos) {
+        const horariosSnapshot = await db.collection("agendamentos").doc(dataStr).collection("horarios").get();
+        const coluna = document.createElement("div");
+        coluna.className = "dia-coluna";
+        coluna.setAttribute("data-dia", dataStr);
+
+        const cards = [];
+
+        horariosSnapshot.forEach(doc => {
+          const dados = doc.data();
+          const horarioStr = doc.id;
+          const card = document.createElement("div");
+          card.className = "agenda-card" + (dataStr === hojeStr ? " today" : "");
+          card.innerHTML = `
+            <div class="card-header">
+              <span class="card-date">${dataStr}</span> - 
+              <span class="card-time">${horarioStr}</span>
+            </div>
+            <div class="card-body">
+              <p><strong>Nome:</strong> ${dados.nome}</p>
+              <p><strong>Contato:</strong> ${dados.contato}</p>
+              <p><strong>Local:</strong> ${dados.local}</p>
+              <p><strong>Quantidade:</strong> ${dados.quantidade}</p>
+            </div>
+            <div class="card-actions">
+              <button onclick="abrirModal('${dataStr}', '${doc.id}', '${dados.nome}')">✅ Concluído</button>
+              <button onclick="excluirAgendamento('${dataStr}', '${doc.id}')">🗑️ Excluir</button>
+            </div>
+          `;
+          cards.push(card);
+        });
+
+        if (cards.length === 0) {
+          const cardVazio = document.createElement("div");
+          cardVazio.className = "agenda-card vazio";
+          cardVazio.innerHTML = "<p>Nada no momento</p>";
+          coluna.appendChild(cardVazio);
+        } else {
+          cards.forEach(c => coluna.appendChild(c));
+        }
+
+        carousel.appendChild(coluna);
+
+        const span = document.createElement("span");
+        span.textContent = dataStr === hojeStr ? "Hoje" : dataStr;
+        span.setAttribute("data-dia", dataStr);
+        legenda.appendChild(span);
+
+        if (!primeiroDiaVisivel) primeiroDiaVisivel = dataStr;
+      }
+
+      marcarDiaAtivo();
+
+      carregarResumoMensal();
+
+      if (primeiroDiaVisivel) {
+        carregarResumoPagamentos(primeiroDiaVisivel);
+      }
+    }
+
+    function abrirModal(data, horario, nome) {
+      agendamentoAtual = { data, horario, nome };
+      document.getElementById("valorPago").value = "";
+      document.getElementById("modalPagamento").style.display = "flex";
+    }
+
+    function fecharModal() {
+      document.getElementById("modalPagamento").style.display = "none";
+    }
+
+    document.getElementById("confirmarPagamento").addEventListener("click", async () => {
+      const valor = parseFloat(document.getElementById("valorPago").value);
+      if (isNaN(valor) || valor <= 0) {
+        alert("Digite um valor válido.");
+        return;
+      }
+
+      const { data, horario, nome } = agendamentoAtual;
+      const dataRegistro = new Date();
+
+      try {
+        await db.collection("agendamentos").doc(data)
+          .collection("pagamentos").add({ nome, valor, dataRegistro });
+
+        await db.collection("agendamentos").doc(data)
+          .collection("horarios").doc(horario).delete();
+
+        fecharModal();
+        carregarAgendamentos();
+      } catch (e) {
+        console.error("Erro ao registrar pagamento:", e);
+        alert("Erro ao concluir agendamento.");
+      }
+    });
+
+    async function excluirAgendamento(data, horario) {
+      if (!confirm(`Deseja excluir o agendamento de ${data} às ${horario}?`)) return;
+
+      try {
+        await db.collection("agendamentos").doc(data).collection("horarios").doc(horario).delete();
+        alert("Agendamento excluído com sucesso!");
+        carregarAgendamentos();
+      } catch (erro) {
+        console.error("Erro ao excluir:", erro);
+        alert("Erro ao excluir agendamento.");
+      }
+    }
+
+    async function carregarResumoPagamentos(dataStr) {
+      if (diaResumoAtual === dataStr) return; // evita chamadas duplicadas
+      diaResumoAtual = dataStr;
+
+      const tabela = document.getElementById("tabelaResumo").querySelector("tbody");
+      const totalGeralEl = document.getElementById("totalGeral");
+      tabela.innerHTML = "";
+      let totalGeral = 0;
+      const resumo = [];
+
+      const pagamentos = await db.collection("agendamentos").doc(dataStr).collection("pagamentos").get();
+      pagamentos.forEach(doc => {
+        const { nome, valor, dataRegistro } = doc.data();
+        const dataFormatada = dataRegistro ? new Date(dataRegistro.seconds * 1000).toLocaleDateString() : "—";
+        resumo.push({ nome, valor, dataFormatada });
+        totalGeral += valor;
+      });
+
+      if (resumo.length === 0) {
+        const linha = document.createElement("tr");
+        linha.innerHTML = `<td colspan="3" style="text-align: center;">Nenhum pagamento registrado neste dia</td>`;
+        tabela.appendChild(linha);
+      } else {
+        resumo.forEach(item => {
+          const linha = document.createElement("tr");
+          linha.innerHTML = `<td>${item.nome}</td><td>R$ ${item.valor.toFixed(2)}</td><td>${item.dataFormatada}</td>`;
+          tabela.appendChild(linha);
+        });
+      }
+
+      totalGeralEl.textContent = `R$ ${totalGeral.toFixed(2)}`;
+    }
+
+    async function carregarResumoMensal() {
+      const tabela = document.getElementById("tabelaMensal").querySelector("tbody");
+      tabela.innerHTML = "";
+
+      const meses = {};
+      const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+      const diasSnapshot = await db.collection("agendamentos").get();
+      for (const diaDoc of diasSnapshot.docs) {
+        const dataStr = diaDoc.id;
+        const pagamentosSnapshot = await db.collection("agendamentos").doc(dataStr).collection("pagamentos").get();
+
+        pagamentosSnapshot.forEach(doc => {
+          const { valor, dataRegistro } = doc.data();
+          const data = dataRegistro ? new Date(dataRegistro.seconds * 1000) : new Date(dataStr);
+          const chave = `${data.getFullYear()}-${data.getMonth()}`;
+          if (!meses[chave]) meses[chave] = 0;
+          meses[chave] += valor;
+        });
+      }
+
+      Object.entries(meses).sort().forEach(([chave, total]) => {
+        const [ano, mes] = chave.split("-");
+        const mesNome = `${nomesMeses[parseInt(mes)]} ${ano}`;
+        const linha = document.createElement("tr");
+        linha.innerHTML = `<td>${mesNome}</td><td>R$ ${total.toFixed(2)}</td>`;
+        tabela.appendChild(linha);
+      });
+    }
+
+    function marcarDiaAtivo() {
+      const carousel = document.getElementById("carousel");
+      const legenda = document.getElementById("diasLegenda");
+      const spans = legenda.querySelectorAll("span");
+      const colunas = carousel.querySelectorAll(".dia-coluna");
+
+      function atualizarLegendaVisivel() {
+        let minDist = Infinity;
+        let diaVisivel = null;
+
+        colunas.forEach(col => {
+          const rect = col.getBoundingClientRect();
+          const dist = Math.abs(rect.left);
+          if (dist < minDist) {
+            minDist = dist;
+            diaVisivel = col.getAttribute("data-dia");
+          }
+        });
+
+        spans.forEach(span => {
+          span.classList.toggle("active", span.getAttribute("data-dia") === diaVisivel);
+        });
+
+        if (diaVisivel) carregarResumoPagamentos(diaVisivel);
+      }
+
+      carousel.addEventListener("scroll", () => {
+        clearTimeout(carousel._scrollTimer);
+        carousel._scrollTimer = setTimeout(atualizarLegendaVisivel, 100);
+      });
+
+      spans.forEach(span => {
+        span.addEventListener("click", () => {
+          const dia = span.getAttribute("data-dia");
+          const destino = carousel.querySelector(`[data-dia="${dia}"]`);
+          if (destino) destino.scrollIntoView({ behavior: "smooth" });
+        });
+      });
+
+      atualizarLegendaVisivel();
+    }
+
+    carregarAgendamentos();
+  </script>
+</body>
+</html>

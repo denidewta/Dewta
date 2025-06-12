@@ -1,0 +1,395 @@
+body {
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f4f7f6;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* App Container */
+.app-container {
+  max-width: 1200px;
+  margin: 20px auto;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 30px;
+}
+
+/* Titles and Headings */
+.app-title {
+  font-size: 2.2em;
+  color: #2c3e50;
+  text-align: center;
+  margin-bottom: 30px;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 1.8em;
+  color: #34495e;
+  margin-top: 40px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #ecf0f1;
+  padding-bottom: 10px;
+}
+
+/* Legend for Days */
+.dias-legenda {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 30px;
+  padding: 15px 0;
+  background-color: #fdfdfd;
+  border-radius: 5px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.dias-legenda span {
+  padding: 8px 15px;
+  border-radius: 20px;
+  background-color: #e0e6ea;
+  color: #555;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.dias-legenda span:hover {
+  background-color: #cdd5dc;
+}
+
+.dias-legenda span.active {
+  background-color: #3498db;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+}
+
+/* Carousel Container */
+.carousel-container {
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 20px 0;
+  gap: 25px;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #b0c4de #f1f1f1; /* Firefox */
+}
+
+/* Hide scrollbar for Chrome, Safari, and Opera */
+.carousel-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.carousel-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.carousel-container::-webkit-scrollbar-thumb {
+  background: #b0c4de;
+  border-radius: 10px;
+}
+
+.carousel-container::-webkit-scrollbar-thumb:hover {
+  background: #8fa6c5;
+}
+
+.dia-coluna {
+  flex: 0 0 auto;
+  width: 320px; /* Fixed width for each day's column */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-right: 10px; /* Spacing between columns */
+}
+
+/* Agenda Card */
+.agenda-card {
+  background-color: #ffffff;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 20px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.agenda-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.agenda-card.today {
+  border-left: 5px solid #28a745; /* Highlight for today's appointments */
+  box-shadow: 0 2px 10px rgba(40, 167, 69, 0.1);
+}
+
+.card-header {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #ecf0f1;
+}
+
+.card-date, .card-time {
+  font-size: 0.95em;
+  color: #7f8c8d;
+}
+
+.card-body p {
+  margin: 8px 0;
+  font-size: 0.95em;
+  color: #555;
+}
+
+.card-body strong {
+  color: #34495e;
+}
+
+.card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px dashed #ecf0f1;
+}
+
+/* Buttons */
+button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  flex-grow: 1; /* Allow buttons to grow and fill space */
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+/* Specific Button Styles */
+button[onclick*="abrirModal"] { /* Concluído */
+  background-color: #28a745;
+  color: #ffffff;
+}
+
+button[onclick*="abrirModal"]:hover {
+  background-color: #218838;
+}
+
+button[onclick*="excluirAgendamento"] { /* Excluir */
+  background-color: #dc3545;
+  color: #ffffff;
+}
+
+button[onclick*="excluirAgendamento"]:hover {
+  background-color: #c82333;
+}
+
+#confirmarPagamento {
+  background-color: #007bff;
+  color: #ffffff;
+}
+
+#confirmarPagamento:hover {
+  background-color: #0069d9;
+}
+
+.modal-content button[onclick*="fecharModal"] { /* Cancelar */
+  background-color: #6c757d;
+  color: #ffffff;
+}
+
+.modal-content button[onclick*="fecharModal"]:hover {
+  background-color: #5a6268;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  overflow: hidden; /* Ensures rounded corners apply to content */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+th, td {
+  text-align: left;
+  padding: 15px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+thead th {
+  background-color: #f8f9fa;
+  color: #34495e;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.9em;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #fdfdfd;
+}
+
+tbody tr:hover {
+  background-color: #f0f4f7;
+}
+
+tfoot th {
+  background-color: #e9ecef;
+  color: #2c3e50;
+  font-weight: 700;
+  padding: 15px;
+  font-size: 1.1em;
+}
+
+/* Modal Styles */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1000; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background-color: #ffffff;
+  margin: auto;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  color: #34495e;
+  font-size: 1.5em;
+  margin-bottom: 20px;
+}
+
+.modal-content input[type="number"] {
+  width: calc(100% - 20px);
+  padding: 12px 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  font-size: 1em;
+  box-sizing: border-box; /* Include padding in width */
+}
+
+.modal-content input[type="number"]:focus {
+  border-color: #80bdff;
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.modal-content button {
+  width: calc(50% - 10px); /* Adjust width for two buttons */
+  margin: 5px;
+}
+
+/* Responsive Adjustments (Basic) */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 15px;
+    margin: 10px;
+  }
+
+  .app-title {
+    font-size: 1.8em;
+  }
+
+  h2 {
+    font-size: 1.5em;
+    margin-top: 30px;
+  }
+
+  .dias-legenda {
+    gap: 10px;
+  }
+
+  .dias-legenda span {
+    padding: 6px 12px;
+    font-size: 0.85em;
+  }
+
+  .carousel-container {
+    padding: 10px 0;
+    gap: 15px;
+  }
+
+  .dia-coluna {
+    width: 280px; /* Slightly smaller column width */
+  }
+
+  .agenda-card {
+    padding: 15px;
+  }
+
+  .card-header {
+    font-size: 1em;
+  }
+
+  .card-body p {
+    font-size: 0.9em;
+  }
+
+  .card-actions {
+    flex-direction: column; /* Stack buttons on small screens */
+  }
+
+  .card-actions button {
+    width: 100%;
+    margin: 5px 0;
+  }
+
+  th, td {
+    padding: 10px;
+    font-size: 0.9em;
+  }
+
+  thead th {
+    font-size: 0.8em;
+  }
+
+  tfoot th {
+    font-size: 1em;
+  }
+}
+
+}
