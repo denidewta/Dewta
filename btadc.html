@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel de Agendamentos e Folgas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 10px;
+      background-color: #f4f4f4;
+      color: #333;
+      font-size: 14px;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 15px 0;
+      font-size: 24px;
+    }
+
+    section {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .dia {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin: 5px;
+      background-color: #fdfdfd;
+    }
+
+    .horario {
+      display: flex;
+      align-items: center;
+      margin-left: 10px;
+      margin-top: 5px;
+    }
+
+    .horario span {
+      margin-right: 8px;
+      font-size: 13px;
+    }
+
+    button {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 4px;
+      margin-right: 4px;
+      font-size: 12px;
+    }
+
+    button.excluir {
+      background-color: #e63946;
+      color: white;
+    }
+
+    button.folga {
+      background-color: #444;
+      color: white;
+    }
+
+    button.remover {
+      background-color: #888;
+      color: white;
+    }
+
+    .disponivel {
+      color: green;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .indisponivel {
+      color: red;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .grid-dias {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+    }
+  </style>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <h1>Desistência e Folgas</h1>
+
+  <section>
+    <h2>Agendamentos</h2>
+    <div id="listaAgendamentos"></div>
+  </section>
+
+  <section>
+    <h2>Controle de Folgas (3 Semanas)</h2>
+    <div id="diasContainer" class="grid-dias"></div>
+  </section>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCqImvbXx1nt0kpO9qP1OlvzYrOi02oh6U",
+      authDomain: "dewta-df829.firebaseapp.com",
+      projectId: "dewta-df829",
+      storageBucket: "dewta-df829.appspot.com",
+      messagingSenderId: "482045122323",
+      appId: "1:482045122323:web:6e30a2f421a902d33b6ce6"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const horariosFixos = ["09:00", "11:00", "13:00", "15:00"];
+
+    function formatarDataBR(dataISO) {
+      const [ano, mes, dia] = dataISO.split("-");
+      return `${dia}/${mes}/${ano}`;
+    }
+
+    async function carregarAgendamentos() {
+      const container = document.getElementById("listaAgendamentos");
+      const snapshot = await db.collection("agendamentos").get();
+
+      snapshot.forEach(async doc => {
+        const dataId = doc.id;
+        const horarios = doc.data().horarios || [];
+
+        if (horarios.length === 0) return;
+
+        const diaDiv = document.createElement("div");
+        diaDiv.className = "dia";
+        diaDiv.innerHTML = `<h3>${formatarDataBR(dataId)}</h3>`;
+
+        for (const horario of horarios) {
+          const subdoc = await db.collection("agendamentos").doc(dataId).collection("horarios").doc(horario).get();
+          const dados = subdoc.exists ? subdoc.data() : null;
+
+          const hDiv = document.createElement("div");
+          hDiv.className = "horario";
+
+          const info = dados
+            ? `⏰ ${horario} - ${dados.nome} (${dados.contato})`
+            : `⏰ ${horario} (sem dados)`;
+
+          hDiv.innerHTML = `
+            <span>${info}</span>
+            <button class="excluir" onclick="excluirAgendamento('${dataId}', '${horario}')">Excluir</button>
+          `;
+
+          diaDiv.appendChild(hDiv);
+        }
+
+        container.appendChild(diaDiv);
+      });
+    }
+
+    async function excluirAgendamento(dataId, horario) {
+      const confirmar = confirm(`Deseja realmente excluir o horário ${horario} do dia ${formatarDataBR(dataId)}?`);
+      if (!confirmar) return;
+
+      try {
+        await db.collection("agendamentos").doc(dataId).update({
+          horarios: firebase.firestore.FieldValue.arrayRemove(horario)
+        });
+
+        await db.collection("agendamentos").doc(dataId).collection("horarios").doc(horario).delete();
+
+        alert("✅ Agendamento excluído e horário liberado!");
+        location.reload();
+      } catch (erro) {
+        console.error("Erro ao excluir:", erro);
+        alert("❌ Erro ao excluir o agendamento.");
+      }
+    }
+
+    async function gerarDiasSemanas() {
+      const hoje = new Date();
+      const diaSemana = hoje.getDay();
+      const domingoAtual = new Date(hoje);
+      domingoAtual.setDate(hoje.getDate() - diaSemana);
+
+      for (let i = 0; i < 21; i++) {
+        const data = new Date(domingoAtual);
+        data.setDate(domingoAtual.getDate() + i);
+        const ano = data.getFullYear();
+        const mes = (data.getMonth() + 1).toString().padStart(2, '0');
+        const dia = data.getDate().toString().padStart(2, '0');
+        const dataFormatada = `${ano}-${mes}-${dia}`;
+        await exibirDia(dataFormatada);
+      }
+    }
+
+    async function exibirDia(dataId) {
+      const docRef = db.collection("agendamentos").doc(dataId);
+      const doc = await docRef.get();
+      const dados = doc.exists ? doc.data() : null;
+      const horarios = dados && dados.horarios ? dados.horarios : [];
+
+      const div = document.createElement("div");
+      div.className = "dia";
+
+      const status = horarios.length >= horariosFixos.length
+        ? `<span class="indisponivel">Indisponível (Folga)</span>`
+        : `<span class="disponivel">Disponível</span>`;
+
+      div.innerHTML = `
+        <strong>${formatarDataBR(dataId)}</strong><br>${status}<br>
+        <button class="folga" onclick="marcarFolga('${dataId}')">Marcar Folga</button>
+        <button class="remover" onclick="removerFolga('${dataId}')">Remover Folga</button>
+      `;
+
+      document.getElementById("diasContainer").appendChild(div);
+    }
+
+    async function marcarFolga(dataId) {
+      try {
+        await db.collection("agendamentos").doc(dataId).set({
+          horarios: horariosFixos
+        }, { merge: true });
+
+        for (const h of horariosFixos) {
+          await db.collection("agendamentos").doc(dataId)
+            .collection("horarios").doc(h).set({
+              nome: "Folga",
+              contato: "-"
+            });
+        }
+
+        alert(`✔️ Folga marcada para ${formatarDataBR(dataId)}`);
+        location.reload();
+      } catch (erro) {
+        console.error("Erro:", erro);
+        alert("❌ Erro ao marcar folga.");
+      }
+    }
+
+    async function removerFolga(dataId) {
+      try {
+        for (const h of horariosFixos) {
+          await db.collection("agendamentos").doc(dataId).collection("horarios").doc(h).delete();
+        }
+
+        await db.collection("agendamentos").doc(dataId).update({
+          horarios: firebase.firestore.FieldValue.delete()
+        });
+
+        alert(`🗑️ Folga removida de ${formatarDataBR(dataId)}`);
+        location.reload();
+      } catch (erro) {
+        console.error("Erro ao remover folga:", erro);
+        alert("❌ Erro ao remover folga.");
+      }
+    }
+
+    carregarAgendamentos();
+    gerarDiasSemanas();
+  </script>
+</body>
+</html>
