@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel de Agendamentos</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <style>
+    /* General Body and Typography */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f7f6;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .app-title {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 40px;
+      font-size: 2.5em;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    h2 {
+      color: #2c3e50;
+      margin-top: 40px;
+      margin-bottom: 20px;
+      font-size: 1.8em;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+
+    /* Filter Button */
+    .filter-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .filter-button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .filter-button:hover {
+      background-color: #0056b3;
+      transform: translateY(-2px);
+    }
+
+    /* Card Styles */
+    .cards-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px 0;
+    }
+
+    .data-card {
+      background-color: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .data-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .data-card.today {
+      border-left: 4px solid #28a745;
+    }
+
+    .data-card.folga {
+      background: #e0e0e0;
+      text-align: center;
+      font-weight: bold;
+      color: #555;
+    }
+
+    .card-header {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 1.1em;
+      margin-bottom: 10px;
+    }
+
+    .card-body p {
+      margin: 5px 0;
+      font-size: 0.9em;
+      color: #444;
+    }
+
+    .card-body .highlight {
+      color: #007bff;
+      font-weight: bold;
+    }
+
+    .card-body a {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .card-body a:hover {
+      text-decoration: underline;
+      color: #0056b3;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .app-container {
+        margin: 10px;
+        padding: 20px;
+        border-radius: 8px;
+      }
+
+      .app-title {
+        font-size: 2em;
+      }
+
+      h2 {
+        font-size: 1.5em;
+      }
+
+      .cards-container {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      }
+
+      .filter-button {
+        padding: 8px 15px;
+        font-size: 0.9em;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .app-title {
+        font-size: 1.8em;
+      }
+
+      .cards-container {
+        grid-template-columns: 1fr;
+      }
+
+      .data-card {
+        padding: 12px;
+      }
+
+      .filter-container {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <h1 class="app-title">Painel de Agendamentos</h1>
+
+    <div class="filter-container">
+      <button id="filterButton" class="filter-button">Ordenar: Mais recente primeiro</button>
+    </div>
+
+    <h2>Agendamentos</h2>
+    <div id="agendamentosContainer" class="cards-container"></div>
+  </div>
+
+  <script>
+    // Formatters
+    function formatarDataBrasileira(dataStr) {
+      const partes = dataStr.split("-");
+      if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+      }
+      return dataStr;
+    }
+
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCqImvbXx1nt0kpO9qP1OlvzYrOi02oh6U",
+      authDomain: "dewta-df829.firebaseapp.com",
+      projectId: "dewta-df829",
+      storageBucket: "dewta-df829.appspot.com",
+      messagingSenderId: "482045122323",
+      appId: "1:482045122323:web:6e30a2f421a902d33b6ce6"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let isRecentFirst = true; // Tracks current sort order
+
+    async function carregarAgendamentos() {
+      const agendamentosContainer = document.getElementById("agendamentosContainer");
+      agendamentosContainer.innerHTML = "";
+
+      const hoje = new Date().toISOString().split("T")[0];
+      const diasSnapshot = await db.collection("agendamentos").get();
+
+      const agendamentos = [];
+      for (const diaDoc of diasSnapshot.docs) {
+        const dataStr = diaDoc.id;
+        const horariosSnapshot = await db.collection("agendamentos").doc(dataStr).collection("horarios").get();
+        horariosSnapshot.forEach(doc => {
+          const dados = doc.data();
+          agendamentos.push({
+            data: dataStr,
+            horario: doc.id,
+            ...dados,
+            isToday: dataStr === hoje
+          });
+        });
+      }
+
+      if (agendamentos.length === 0) {
+        agendamentosContainer.innerHTML = `<p style="text-align: center; color: #555;">Nenhum agendamento registrado.</p>`;
+        return;
+      }
+
+      // Sort based on current filter
+      agendamentos.sort((a, b) => {
+        const dateA = new Date(a.data);
+        const dateB = new Date(b.data);
+        return isRecentFirst ? dateB - dateA : dateA - dateB;
+      });
+
+      agendamentos.forEach(agendamento => {
+        const card = document.createElement("div");
+        card.className = `data-card ${agendamento.isToday ? "today" : ""} ${agendamento.nome === "Folga" ? "folga" : ""}`;
+        
+        if (agendamento.nome === "Folga") {
+          card.innerHTML = `
+            <div class="card-header">Folga - ${formatarDataBrasileira(agendamento.data)}</div>
+          `;
+        } else {
+          const gpsLink = agendamento.local && agendamento.local !== "—" 
+            ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agendamento.local)}" target="_blank">${agendamento.local}</a>`
+            : "—";
+          
+          card.innerHTML = `
+            <div class="card-header">${formatarDataBrasileira(agendamento.data)} - ${agendamento.horario}</div>
+            <div class="card-body">
+              <p><strong>Nome:</strong> ${agendamento.nome}</p>
+              <p><strong>Quantidade:</strong> ${agendamento.quantidade}</p>
+              <p><strong>Contato:</strong> ${agendamento.contato || "—"}</p>
+              <p><strong>Local:</strong> ${gpsLink}</p>
+            </div>
+          `;
+        }
+        agendamentosContainer.appendChild(card);
+      });
+    }
+
+    // Toggle filter on button click
+    document.getElementById("filterButton").addEventListener("click", () => {
+      isRecentFirst = !isRecentFirst;
+      document.getElementById("filterButton").textContent = isRecentFirst 
+        ? "Ordenar: Mais recente primeiro" 
+        : "Ordenar: Mais antigo primeiro";
+      carregarAgendamentos();
+    });
+
+    // Load data on page load
+    carregarAgendamentos();
+  </script>
+</body>
+</html>
